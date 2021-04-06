@@ -31,12 +31,16 @@
       const innerHeight = height - margin.top - margin.bottom;
       const mainGroup = svg.append('g')
       .attr('transform', `translate(${margin.left}, ${margin.top})`)
+      .attr('id', 'maingroup');
       // console.log(d);
       const xValue = d => d.globalsale;
       const yValue = d => d.platform;
       const xScale = d3.scaleLinear();
       const yScale = d3.scaleBand();
 
+
+      const xBarValue = (datum) => {return datum.globalsale};
+      const yBarValue = (datum) => {return datum.platform};
       let aduration = 1000;
       let totalduration = 20000;
 
@@ -79,74 +83,6 @@
         Note that you can also preprocessing data in your own way using your prefered language, e.g., Python. 
       */
 
-      const setting_up_barchart = function(data){
-        console.log(data);
-        let data_tt = data.filter(datum => {return datum[keyHint] === '总计'});
-        let data_hb = data.filter(datum => {return datum[keyHint] === alone});
-        data_tt = data_tt.sort(dateSort);
-        data_hb = data_hb.sort(dateSort);
-        let i = 0; 
-        for(; i < data_tt.length; i++){
-          for(let j = 0; j < barKeys.length; j++){
-              data_tt[i][barKeys[j]] = data_tt[i][barKeys[j]] - data_hb[i][barKeys[j]];
-              if(data_tt[i][barKeys[j]] < 0){
-                  data_tt[i][barKeys[j]] = 0;
-              }
-          }
-          //data_tt[i]['确诊人数'] = data_tt[i]['确诊人数'] - data_hb[i]['确诊人数'];
-          //data_tt[i]['治愈人数'] = data_tt[i]['治愈人数'] - data_hb[i]['治愈人数'];
-          //data_tt[i]['死亡人数'] = data_tt[i]['死亡人数'] - data_hb[i]['死亡人数'];
-        }
-        console.log('setting up barchart...');
-        // set the animation interval; 
-        aduration = totalduration / data_tt.length; 
-        console.log(data_tt);
-        let c = 0; 
-        let intervalId = setInterval(function(){
-            if(c >= alldates.length){
-                console.log('time to close this animation');
-                clearInterval(intervalId); 
-            }else{
-                renderbarchart(toNameValue(data_tt[c]), true);
-                renderbarchart(toNameValue(data_hb[c]), false);
-                c = c + 1;
-            }
-        }, aduration); 
-      }
-
-      const renderbarchart = function(data, isTatal){
-        let g;
-        let yscalehere;
-        if(isTatal){
-            g = d3.select('#maingroup');
-            yscalehere = yBandScale;
-        }else{
-            g = d3.select('#hubeigroup');
-            yscalehere = nyBandScale;
-        }
-
-        const textbarchart = g.selectAll('.text-barchart').data(data, data => data.name);
-        textbarchart.enter().append('text').attr('class', 'text-barchart')
-        .attr('y', datum => yscalehere(yBarValue(datum)) + yscalehere.bandwidth() / 2 - 12)
-        .attr('x', 836)
-        .attr('text-anchor', 'start');
-        textbarchart.text(d => d.value)
-        .transition().ease(d3.easeCubic).duration(aduration)
-        .attr('x', (datum) => {
-            return 836 + xBarScale(xBarValue(datum));
-        });
-        g.selectAll('.rect-barchart')
-        .data(data)
-        .join('rect')
-        .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
-        .attr('x', 830)
-        .attr('y', datum => yscalehere(yBarValue(datum))-10)
-        .attr('height', yscalehere.bandwidth() / 2)
-        .attr('fill', function(datum){return barchart_color[datum.name]})
-        .transition().ease(d3.easeCubic).duration(aduration)
-        .attr('width', (datum) => {return xBarScale(xBarValue(datum))}); // use xSacle to re-scale data space (domain) and return the rescaled population; 
-      }
-
       d3.csv('pgy.csv').then(data =>{
         // process data
         var sales = {};
@@ -173,10 +109,10 @@
         console.log(platforms);
 
         for (var j = 0; j < platforms.length; j++){
-            if(sales[1980][platforms[j]] === undefined){
-              sales[1980][platforms[j]] = 0.0;
-            }
+          if(sales[1980][platforms[j]] === undefined){
+            sales[1980][platforms[j]] = 0.0;
           }
+        }
         for (var i = 1981; i < 2021; i++){
           for (var j = 0; j < platforms.length; j++){
             if(sales[i][platforms[j]] === undefined){
@@ -186,17 +122,68 @@
         }
         console.log(sales);
 
+        var gamesales = {}
+        for (var i = 1980; i < 2021; i++){
+          var t = [];
+          for (var key in sales[i]){
+            t.push({
+              'platform':key,
+              'globalsale':sales[i][key]
+            })
+          }
+          gamesales[i] = t;
+        }
+        console.log(gamesales);
+
         // set the animation interval; 
-        aduration = totalduration / sales.length; 
-        let c = 0; 
+        aduration = totalduration / 41;
+        console.log('aduration', aduration);
+        let c = 1980; 
         let intervalId = setInterval(function(){
-            if(c >= sales.length){
+            if(c >= 2021){
                 console.log('time to close this animation');
                 clearInterval(intervalId); 
             }else{
-                renderbarchart(toNameValue(data_tt[c]), true);
-                renderbarchart(toNameValue(data_hb[c]), false);
-                c = c + 1;
+              console.log(gamesales[c])
+
+              let g = d3.select('#maingroup');
+
+              let xScale = d3.scaleLinear()
+              .domain([0, 1300])
+              .range([0, innerWidth-100]);
+              let yScale = d3.scaleBand()
+              .domain(platforms)
+              .range([0, innerHeight])
+              .padding(0.01);
+
+              const xAxisMethod = d3.axisBottom(xScale);
+              const yAxisMethod = d3.axisLeft(yScale);
+              const xAxisGroup = mainGroup.append('g').call(xAxisMethod);
+              const yAxisGroup = mainGroup.append('g').call(yAxisMethod);
+              xAxisGroup.attr('transform', `translate(${0}, ${innerHeight})`);
+
+              const textbarchart = g.selectAll('.text-barchart').data(gamesales[c], data => data.platform);
+              textbarchart.enter().append('text').attr('class', 'text-barchart')
+              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() * 3 / 4)
+              .attr('x', 0)
+              .attr('text-anchor', 'start');
+              textbarchart.text(d => d.globalsale)
+              .transition().duration(aduration)
+              .attr('x', (datum) => {
+                  return xScale(xBarValue(datum));
+              });
+
+              g.selectAll('.rect-barchart')
+              .data(gamesales[c], data => data.platform)
+              .join('rect')
+              .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
+              .attr('x', 0)
+              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() / 4 )
+              .attr('height', yScale.bandwidth() / 2)
+              .attr('fill', function(datum){return colors[datum.platform]})
+              .transition().duration(aduration)
+              .attr('width', (datum) => {return xScale(xBarValue(datum))}); // use xSacle to re-scale data space (domain) and return the rescaled population; 
+              c = c + 1;
             }
         }, aduration); 
         
