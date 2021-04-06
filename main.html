@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Assignment1</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+  <link rel="stylesheet" type="text/css" href="http://unpkg.com/iview/dist/styles/iview.css">
+  <!-- <script type="text/javascript" src="http://vuejs.org/js/vue.min.js"></script> -->
+  <script src="d3.min.js"></script>
+  <script type="text/javascript" src="http://unpkg.com/iview/dist/iview.min.js"></script>
+</head>
+
+<body>
+  <!-- <div id="app">
+    <p>{{ message }}</p>
+  </div> -->
+  <svg width="1600" height="800" id="mainsvg" class="svgs"></svg>
+  <script>
+      // new Vue({
+      //   el: '#app',
+      //   data: {
+      //     message: 'Hello Vue.js!'
+      //   }
+      // })
+      // The following code is the typical routine of my d3.js code. 
+      const svg = d3.select('svg');
+      const width = svg.attr('width');
+      const height = svg.attr('height');
+      const margin = {top: 60, right: 30, bottom: 60, left: 150};
+      const innerWidth = width - margin.left - margin.right;
+      const innerHeight = height - margin.top - margin.bottom;
+      const mainGroup = svg.append('g')
+      .attr('transform', `translate(${margin.left}, ${margin.top})`)
+      // console.log(d);
+      const xValue = d => d.globalsale;
+      const yValue = d => d.platform;
+      const xScale = d3.scaleLinear();
+      const yScale = d3.scaleBand();
+
+      let aduration = 1000;
+      let totalduration = 20000;
+
+      var colors = {
+        'Wii':"#5E4FA2", 
+        'NES':"#4E62AB", 
+        'GB':"#4075B4", 
+        'DS':"#3288BD",
+        'X360':"#449BB5", 
+        'PS3':"#55AEAD", 
+        'PS2':"#66C2A5",
+        'SNES':"#7DCBA4",
+        'GBA':"#94D4A4", 
+        '3DS':"#ABDDA4", 
+        'PS4':"#BEE5A0", 
+        'N64':"#D2ED9C",
+        'PS':"#E6F598",
+        'XB':"#FFF5AE", 
+        'PC':"#FEEA9C", 
+        '2600':"#FEE08B",
+        'PSP':"#F0AA77", 
+        'XOne':"#E27463", 
+        'GC':"#D53E4F", 
+        'WiiU':"#C32A4B",
+        'GEN':"#B01546", 
+        'DC':"#9E1346", 
+        'PSV':"#8E1146", 
+        'SAT':"#7E0F46",
+        'SCD':"#6E0D46", 
+        'WS':"#5E0B46", 
+        'NG':"#4E0945", 
+        'TG16':"#3E0745",
+        '3DO':"#2E0545", 
+        'GG':"#1E0345", 
+        'PCFX':"#0E0145"
+      };
+
+      /* 
+        Loading data and preprocessing data. 
+        Note that you can also preprocessing data in your own way using your prefered language, e.g., Python. 
+      */
+
+      const setting_up_barchart = function(data){
+        console.log(data);
+        let data_tt = data.filter(datum => {return datum[keyHint] === '总计'});
+        let data_hb = data.filter(datum => {return datum[keyHint] === alone});
+        data_tt = data_tt.sort(dateSort);
+        data_hb = data_hb.sort(dateSort);
+        let i = 0; 
+        for(; i < data_tt.length; i++){
+          for(let j = 0; j < barKeys.length; j++){
+              data_tt[i][barKeys[j]] = data_tt[i][barKeys[j]] - data_hb[i][barKeys[j]];
+              if(data_tt[i][barKeys[j]] < 0){
+                  data_tt[i][barKeys[j]] = 0;
+              }
+          }
+          //data_tt[i]['确诊人数'] = data_tt[i]['确诊人数'] - data_hb[i]['确诊人数'];
+          //data_tt[i]['治愈人数'] = data_tt[i]['治愈人数'] - data_hb[i]['治愈人数'];
+          //data_tt[i]['死亡人数'] = data_tt[i]['死亡人数'] - data_hb[i]['死亡人数'];
+        }
+        console.log('setting up barchart...');
+        // set the animation interval; 
+        aduration = totalduration / data_tt.length; 
+        console.log(data_tt);
+        let c = 0; 
+        let intervalId = setInterval(function(){
+            if(c >= alldates.length){
+                console.log('time to close this animation');
+                clearInterval(intervalId); 
+            }else{
+                renderbarchart(toNameValue(data_tt[c]), true);
+                renderbarchart(toNameValue(data_hb[c]), false);
+                c = c + 1;
+            }
+        }, aduration); 
+      }
+
+      const renderbarchart = function(data, isTatal){
+        let g;
+        let yscalehere;
+        if(isTatal){
+            g = d3.select('#maingroup');
+            yscalehere = yBandScale;
+        }else{
+            g = d3.select('#hubeigroup');
+            yscalehere = nyBandScale;
+        }
+
+        const textbarchart = g.selectAll('.text-barchart').data(data, data => data.name);
+        textbarchart.enter().append('text').attr('class', 'text-barchart')
+        .attr('y', datum => yscalehere(yBarValue(datum)) + yscalehere.bandwidth() / 2 - 12)
+        .attr('x', 836)
+        .attr('text-anchor', 'start');
+        textbarchart.text(d => d.value)
+        .transition().ease(d3.easeCubic).duration(aduration)
+        .attr('x', (datum) => {
+            return 836 + xBarScale(xBarValue(datum));
+        });
+        g.selectAll('.rect-barchart')
+        .data(data)
+        .join('rect')
+        .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
+        .attr('x', 830)
+        .attr('y', datum => yscalehere(yBarValue(datum))-10)
+        .attr('height', yscalehere.bandwidth() / 2)
+        .attr('fill', function(datum){return barchart_color[datum.name]})
+        .transition().ease(d3.easeCubic).duration(aduration)
+        .attr('width', (datum) => {return xBarScale(xBarValue(datum))}); // use xSacle to re-scale data space (domain) and return the rescaled population; 
+      }
+
+      d3.csv('pgy.csv').then(data =>{
+        // process data
+        var sales = {};
+        var platforms = [];
+        for (var i = 0; i < data.length; i++){
+
+          var year = parseInt(data[i]['year']);
+          var platform = data[i]['platform'];
+          var globalsale = data[i]['globalsale'];
+
+          if (platforms.indexOf(platform) === -1){
+            platforms.push(platform);
+          }
+
+          if(sales[year] !== undefined){
+            sales[year][platform] = globalsale;
+          }
+          else{
+            sales[year] = {};
+            sales[year][platform] = globalsale;
+          }
+        }
+        console.log(sales);
+        console.log(platforms);
+
+        for (var j = 0; j < platforms.length; j++){
+            if(sales[1980][platforms[j]] === undefined){
+              sales[1980][platforms[j]] = 0.0;
+            }
+          }
+        for (var i = 1981; i < 2021; i++){
+          for (var j = 0; j < platforms.length; j++){
+            if(sales[i][platforms[j]] === undefined){
+              sales[i][platforms[j]] =  sales[i-1][platforms[j]];
+            }
+          }
+        }
+        console.log(sales);
+
+        // set the animation interval; 
+        aduration = totalduration / sales.length; 
+        let c = 0; 
+        let intervalId = setInterval(function(){
+            if(c >= sales.length){
+                console.log('time to close this animation');
+                clearInterval(intervalId); 
+            }else{
+                renderbarchart(toNameValue(data_tt[c]), true);
+                renderbarchart(toNameValue(data_hb[c]), false);
+                c = c + 1;
+            }
+        }, aduration); 
+        
+      })
+
+      // d3.csv('platform_globalsale.csv').then(data => {
+
+      //     // calculationg scales: 
+      //     yScale.domain(data.map(yValue)).range([0, innerHeight]).padding(0.1);
+      //     xScale.domain([0, d3.max(data, xValue)]).range([0, innerWidth]);   
+      //     // data-join for rectangles: 
+
+      //     console.log(mainGroup.selectAll('rect').data(data))
+      //     mainGroup.selectAll('rect').data(data).join('rect')
+      //     .attr('height', yScale.bandwidth()).attr('width', d => xScale(xValue(d)))
+      //     .attr('x', 0).attr('y', d => yScale(yValue(d)))
+      //     .attr('fill', function(d, i){
+      //       return colors[d.platform];
+      //     })
+      //     // adding axes: 
+      //     const xAxisMethod = d3.axisBottom(xScale);
+      //     const yAxisMethod = d3.axisLeft(yScale);
+      //     const xAxisGroup = mainGroup.append('g').call(xAxisMethod);
+      //     const yAxisGroup = mainGroup.append('g').call(yAxisMethod);
+      //     xAxisGroup.attr('transform', `translate(${0}, ${innerHeight})`);
+      // })
+  </script> 
+</body>
+
+</html>
