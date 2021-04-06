@@ -35,16 +35,17 @@
       // console.log(d);
       const xValue = d => d.globalsale;
       const yValue = d => d.platform;
-      const xScale = d3.scaleLinear();
-      const yScale = d3.scaleBand();
 
-
+      
+      let xSacle, yScale;
       const xBarValue = (datum) => {return datum.globalsale};
       const yBarValue = (datum) => {return datum.platform};
       let aduration = 1000;
       let totalduration = 20000;
 
-      var colors = {
+      const platforms = ["Wii", "NES", "GB", "DS", "X360", "PS3", "PS2", "SNES", "GBA", "3DS", "PS4", "N64", "PS", "XB", "PC", "2600", "PSP", "XOne", "GC", "WiiU", "GEN", "DC", "PSV", "SAT", "SCD", "WS", "NG", "TG16", "3DO", "GG", "PCFX"];
+
+      const colors = {
         'Wii':"#5E4FA2", 
         'NES':"#4E62AB", 
         'GB':"#4075B4", 
@@ -77,6 +78,39 @@
         'GG':"#1E0345", 
         'PCFX':"#0E0145"
       };
+
+      const renderinit = function(){
+        let g = d3.select('#maingroup');
+
+        xScale = d3.scaleLinear()
+        .domain([0, 1300])
+        .range([0, innerWidth-100]);
+        yScale = d3.scaleBand()
+        .domain(platforms)
+        .range([0, innerHeight])
+        .padding(0.01);
+
+        const xAxisMethod = d3.axisBottom(xScale);
+        const yAxisMethod = d3.axisLeft(yScale);
+        const xAxisGroup = mainGroup.append('g').call(xAxisMethod)
+              .attr('font-size', '1.3em')
+              .attr('font-weight', 'bold');
+        const yAxisGroup = mainGroup.append('g').call(yAxisMethod)
+              .attr('font-size', '1.3em')
+              .attr('font-weight', 'bold');
+        xAxisGroup.attr('transform', `translate(${0}, ${innerHeight})`);
+
+        g.append("text")
+        .attr('id', 'date_text')
+        .attr("x", innerWidth - 80)
+        .attr("y", innerHeight - 80)
+        .attr("dy", ".5em")
+        .style("text-anchor", "end")
+        .attr("fill", "#504f4f")
+        .attr('font-size', '6em')
+        .attr('font-weight', 'bold')
+        .text(' ');
+      }
 
       /* 
         Loading data and preprocessing data. 
@@ -135,6 +169,8 @@
         }
         console.log(gamesales);
 
+        renderinit();
+
         // set the animation interval; 
         aduration = totalduration / 41;
         console.log('aduration', aduration);
@@ -148,27 +184,35 @@
 
               let g = d3.select('#maingroup');
 
-              let xScale = d3.scaleLinear()
-              .domain([0, 1300])
-              .range([0, innerWidth-100]);
-              let yScale = d3.scaleBand()
-              .domain(platforms)
-              .range([0, innerHeight])
-              .padding(0.01);
-
-              const xAxisMethod = d3.axisBottom(xScale);
-              const yAxisMethod = d3.axisLeft(yScale);
-              const xAxisGroup = mainGroup.append('g').call(xAxisMethod);
-              const yAxisGroup = mainGroup.append('g').call(yAxisMethod);
-              xAxisGroup.attr('transform', `translate(${0}, ${innerHeight})`);
+              d3.select('#date_text').text(String(c)+'年');
 
               const textbarchart = g.selectAll('.text-barchart').data(gamesales[c], data => data.platform);
-              textbarchart.enter().append('text').attr('class', 'text-barchart')
-              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() * 3 / 4)
+              textbarchart.enter().append('text')
+              .attr('class', 'text-barchart')
+              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() * 7 / 10)
               .attr('x', 0)
-              .attr('text-anchor', 'start');
+              .attr('dx', 10)
+              .attr('text-anchor', 'start')
+              .attr("fill", "#504f4f")
+              .attr('font-size', '1.3em')
+              .attr('font-weight', 'bold');
+
               textbarchart.text(d => d.globalsale)
-              .transition().duration(aduration)
+              .transition()
+              .duration(aduration)
+              .ease(d3.easeLinear)
+              .tween('text', function(d) {
+                var i = d3.interpolate(this.textContent, d.globalsale);
+                return function(t){
+                  var text = d3.format('.2f')(i(t));
+                  if(text === '0.00'){
+                    this.textContent = '';
+                  }
+                  else{
+                    this.textContent = d3.format('.2f')(i(t));
+                  }
+                }
+              })
               .attr('x', (datum) => {
                   return xScale(xBarValue(datum));
               });
@@ -178,38 +222,18 @@
               .join('rect')
               .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
               .attr('x', 0)
-              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() / 4 )
-              .attr('height', yScale.bandwidth() / 2)
+              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() / 10 )
+              .attr('height', yScale.bandwidth()*4 / 5)
               .attr('fill', function(datum){return colors[datum.platform]})
-              .transition().duration(aduration)
+              .transition()
+              .ease(d3.easeLinear)
+              .duration(aduration)
               .attr('width', (datum) => {return xScale(xBarValue(datum))}); // use xSacle to re-scale data space (domain) and return the rescaled population; 
               c = c + 1;
             }
         }, aduration); 
         
       })
-
-      // d3.csv('platform_globalsale.csv').then(data => {
-
-      //     // calculationg scales: 
-      //     yScale.domain(data.map(yValue)).range([0, innerHeight]).padding(0.1);
-      //     xScale.domain([0, d3.max(data, xValue)]).range([0, innerWidth]);   
-      //     // data-join for rectangles: 
-
-      //     console.log(mainGroup.selectAll('rect').data(data))
-      //     mainGroup.selectAll('rect').data(data).join('rect')
-      //     .attr('height', yScale.bandwidth()).attr('width', d => xScale(xValue(d)))
-      //     .attr('x', 0).attr('y', d => yScale(yValue(d)))
-      //     .attr('fill', function(d, i){
-      //       return colors[d.platform];
-      //     })
-      //     // adding axes: 
-      //     const xAxisMethod = d3.axisBottom(xScale);
-      //     const yAxisMethod = d3.axisLeft(yScale);
-      //     const xAxisGroup = mainGroup.append('g').call(xAxisMethod);
-      //     const yAxisGroup = mainGroup.append('g').call(yAxisMethod);
-      //     xAxisGroup.attr('transform', `translate(${0}, ${innerHeight})`);
-      // })
   </script> 
 </body>
 
