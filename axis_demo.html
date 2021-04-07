@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>动态坐标轴</title>
+    <script src="d3.min.js"></script>
+</head>
+<body>
+
+<div class="control-group">
+    <button onclick="rescale()">重新生成坐标轴</button>
+</div>
+
+
+
+<script type="text/javascript">
+    let height = 500,
+        width = 500,
+        margin = 30,
+        xAxis, yAxis, xAxisLength, yAxisLength;
+    xAxisLength = width - 2*margin;
+    yAxisLength = height - 2*margin;
+
+
+    //创建一个svg标签画布
+    //后面还要创建一个g标签，用于画坐标系
+    let svg = d3.select("body").append("svg")
+        .attr("class", "axis")
+        .attr("width", width)
+        .attr("height", height)
+        .style("background-color","#cedb9c");
+
+
+    /**
+     * 创建坐标轴     * 一个坐标轴包含：尺度、刻度、相对位置     * 尺度：一个映射关系，请业务数据映射到画布的线上，所有要有两组数据，一组为业务数据，另外一组则是画布的一个线段     * 刻度：类似米尺上的刻度，比如一厘米一大格，中间又有一些代表毫米的小格     * 相对位置：米尺是个实物，而这里的刻度是画在画布上的，就是刻度在画布上的位置
+     */
+    function renderXAxis() {
+        //domain是值就是d3.svg.axis坐标系的x与y的值
+        //svg.axis就是业务数据坐标系，其数据是有业务含义的
+        //range的值是svg画布像素的长度，意思就是要将业务数据domain画在（映射到）svg画布的指定长度范围内
+        let scale = d3.scaleLinear()
+            .domain([0,100])
+            .range([0,xAxisLength]);
+        xAxis = d3.axisBottom(scale);        //<sgv class="axis"><g class="x-axis" >...<g class="y-axis" ...
+        svg.append("g")
+            .attr("class","x-axis")
+            .attr("transform",function () {
+                return "translate("+margin+","+(xAxisLength+margin)+")";
+            })
+            .call(xAxis);
+    }
+
+    function renderYAxis() {
+        let scale = d3.scaleLinear()
+            .domain([100,0])
+            .range([0,yAxisLength])
+        yAxis = d3.axisLeft(scale);
+        //坐标轴是以svg标签下的g标签为画板的
+        svg.append("g")
+            .attr("class","y-axis")
+            .attr("transform",function () {
+                return "translate("+margin+","+margin+")";
+            })
+            .call(yAxis);
+
+
+    }
+
+
+    /**
+     * X坐标轴对应的网格线对应的两个点
+     * 一个是坐标系原点（0,0）
+     * 一个是Y轴的终点（0,-yAxisLength）
+     */
+    function renderXGridLines() {
+        //通常坐标重构前都会删除已有的图形，尽管有时它不并存在
+        d3.selectAll("g.x-axis g.tick")
+            .select("line.grid-line")
+            .remove();
+        //然后重新选取新的图形
+        let lines = d3.selectAll("g.x-axis g.tick")
+            .append("line")
+            .classed("grid-line",true);
+
+        //图形中涉及的坐标系是SVG坐标系，上负下正，右正
+        lines.attr("x1",0)
+            .attr("y1",0)
+            .attr("x2",0)
+            .attr("y2",-yAxisLength);
+    }
+
+    /**
+     * Y坐标轴对应的网格线对应的两个点
+     * 一个是坐标系原点（0,0）
+     * 一个是X轴的终点（xAxisLength,0）
+     */
+    function renderYGridLines() {
+        //通常坐标重构前都会删除已有的图形，尽管有时它不并存在
+        d3.selectAll("g.y-axis g.tick")
+            .select("line.grid-line")
+            .remove();
+        //然后重新选取新的图形
+        let lines = d3.selectAll("g.y-axis g.tick")
+            .append("line")
+            .classed("grid-line",true);
+
+        lines.attr("x1",0)
+            .attr("y1",0)
+            .attr("x2",xAxisLength)
+            .attr("y2",0);
+    }
+
+    /**
+     * 通过改变坐标轴的尺度来重构坐标系
+     */
+    function rescale() {
+        let max = Math.round(Math.random()*100);
+        let duration = 5000;
+        xAxis.scale().domain([0,max]);
+
+        //构建坐标轴会在g标签中添加class为tick的g标签，删除这个就相当于删除了坐标轴
+        //call方法中会自动删除，所以这里不需要这一步了
+        // d3.selectAll("g.x-axis g.tick")
+        //     .remove();
+
+        d3.select("g.x-axis")
+            .transition()
+            .duration(duration)
+            .call(xAxis);
+
+
+        yAxis.scale().domain([max,0]);
+        d3.select("g.y-axis")
+            .transition()
+            .duration(duration)
+            .call(yAxis);
+
+        renderXGridLines();
+        renderYGridLines();
+    }
+
+    renderXAxis();
+    renderYAxis();
+    renderXGridLines();
+    renderYGridLines();
+
+</script>
+</body>
+</html>

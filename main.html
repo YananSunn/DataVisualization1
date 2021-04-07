@@ -84,7 +84,9 @@
 
         const xAxisMethod = d3.axisBottom(xScale);
         const yAxisMethod = d3.axisLeft(yScale);
+
         const xAxisGroup = mainGroup.append('g').call(xAxisMethod)
+              .attr("class","x-axis")
               .attr('font-size', '1.3em')
               .attr('font-weight', 'bold');
         xAxisGroup.append('text')
@@ -93,7 +95,9 @@
         .attr('x', innerWidth / 2)
         .attr('fill', '#504f4f')
         .text(xAxisLabel);
+
         const yAxisGroup = mainGroup.append('g').call(yAxisMethod)
+              .attr("class","y-axis")
               .attr('font-size', '1.3em')
               .attr('font-weight', 'bold');
         yAxisGroup.append('text')
@@ -149,32 +153,29 @@
         console.log(sales);
         console.log(platforms);
 
-        for (var j = 0; j < platforms.length; j++){
-          if(sales[1980][platforms[j]] === undefined){
-            sales[1980][platforms[j]] = 0.0;
-          }
-        }
-        for (var i = 1981; i < 2021; i++){
-          for (var j = 0; j < platforms.length; j++){
-            if(sales[i][platforms[j]] === undefined){
-              sales[i][platforms[j]] = sales[i-1][platforms[j]];
-            }
-          }
-        }
+        // for (var j = 0; j < platforms.length; j++){
+        //   if(sales[1980][platforms[j]] === undefined){
+        //     sales[1980][platforms[j]] = 0.0;
+        //   }
+        // }
+        // for (var i = 1981; i < 2021; i++){
+        //   for (var j = 0; j < platforms.length; j++){
+        //     if(sales[i][platforms[j]] === undefined){
+        //       sales[i][platforms[j]] = sales[i-1][platforms[j]];
+        //     }
+        //   }
+        // }
         console.log(sales);
 
-        var gamesales = {}
-        for (var i = 1980; i < 2021; i++){
-          var t = [];
-          for (var key in sales[i]){
-            t.push({
-              'platform':key,
-              'globalsale':sales[i][key]
-            })
-          }
-          gamesales[i] = t;
-        }
-        console.log(gamesales);
+        var gamesales = []
+        // for (var key in sales['1980']){
+        //   console.log(sales['1980'], sales['1980'][key], typeof sales['1980'][key], parseFloat(sales['1980'][key]))
+        //   gamesales.push({
+        //     'platform':key,
+        //     'globalsale':parseFloat(sales['1980'][key])
+        //   })
+        // }        
+        // console.log('gamesales', gamesales);
 
         renderinit();
 
@@ -189,11 +190,94 @@
             }else{
               console.log('year', c);
 
+              gamesales = gamesales.sort(function(a, b){return parseFloat(b.globalsale) - parseFloat(a.globalsale)});
+
+              var tmpgamesales = [];
+              for (var i = 0; i < gamesales.length; i++){
+                tmpgamesales.push({
+                  'platform':gamesales[i]['platform'],
+                  'globalsale':gamesales[i]['globalsale']
+                });
+              }
+              for (var key in sales[String(c)]){
+                var tmp = tmpgamesales.find(item => item.platform == key);
+                if (tmp !== undefined){
+                  tmp['globalsale'] = parseFloat(sales[String(c)][key]);
+                }
+                else{
+                  tmpgamesales.push({
+                    'platform':key,
+                    'globalsale':parseFloat(sales[String(c)][key])
+                  });
+                }
+
+                gamesales = [];
+                for (var i = 0; i < tmpgamesales.length; i++){
+                  gamesales.push({
+                    'platform':tmpgamesales[i]['platform'],
+                    'globalsale':tmpgamesales[i]['globalsale']
+                  });
+                }
+              }
+
               let g = d3.select('#maingroup');
+
+              xScale = d3.scaleLinear()
+              .domain([0, d3.max(gamesales, d => d.globalsale)])
+              .range([0, innerWidth-100]);
+
+              d3.select("g.x-axis")
+              .transition()
+              .duration(aduration)
+              .ease(d3.easeLinear)
+              .call(d3.axisBottom(xScale));
+
+              d3.selectAll("g.x-axis g.tick")
+              .select("line.grid-line")
+              .remove();
+
+              let xlines = d3.selectAll("g.x-axis g.tick")
+              .append("line")
+              .classed("grid-line",true);
+              xlines.attr("x1",0)
+              .attr("y1",0)
+              .attr("x2",0)
+              .attr("y2",-innerHeight);
+
+
+              var tmpPlatforms = [];
+              for (var i = 0; i < gamesales.length; i++){
+                tmpPlatforms.push(gamesales[i]['platform']);
+              }
+
+              yScale = d3.scaleBand()
+              .domain(tmpPlatforms)
+              .range([0, innerHeight-20])
+              .padding(0.01);
+              
+              d3.select("g.y-axis")
+              .transition()
+              .duration(aduration)
+              .ease(d3.easeLinear)
+              .call(d3.axisLeft(yScale));
+
+              d3.selectAll("g.y-axis g.tick")
+              .select("line.grid-line")
+              .remove();
+
+              let ylines = d3.selectAll("g.y-axis g.tick")
+              .append("line")
+              .classed("grid-line",true);
+
+              ylines.attr("x1",0)
+              .attr("y1",0)
+              .attr("x2", innerWidth)
+              .attr("y2",0);
+
 
               d3.select('#date_text').text(String(c)+'年');
 
-              const textbarchart = g.selectAll('.text-barchart').data(gamesales[c], data => data.platform);
+              const textbarchart = g.selectAll('.text-barchart').data(gamesales, data => data.platform);
               textbarchart.enter().append('text')
               .attr('class', 'text-barchart')
               .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() * 7 / 10)
@@ -205,6 +289,9 @@
               .attr('font-weight', 'bold');
 
               textbarchart.text(d => d.globalsale)
+              .sort(function(a, b) {
+                return d3.descending(parseFloat(a.globalsale), parseFloat(b.globalsale)); 
+              })
               .transition()
               .duration(aduration)
               .ease(d3.easeLinear)
@@ -222,10 +309,14 @@
               })
               .attr('x', (datum) => {
                   return xScale(xBarValue(datum));
+              })
+              .attr("y", function(d, i) { //对排序之后的横坐标重排
+                  return yScale(tmpPlatforms[i]) + yScale.bandwidth() * 7 / 10;
               });
 
+
               g.selectAll('.rect-barchart')
-              .data(gamesales[c], data => data.platform)
+              .data(gamesales, data => data.platform)
               .join('rect')
               .attr('id', function(d){
                 return d.platform;
@@ -236,22 +327,22 @@
               .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
               .attr('x', 0)
               .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() / 10 )
-              .attr('height', yScale.bandwidth()*4 / 5)
+              .attr('height', yScale.bandwidth() * 4 / 5)
               .attr('fill', function(datum){return colors[datum.platform]})
               .attr("rx", 5)
-              // .sort(function(a, b) {
-              //   console.log('a', a, 'b', b, d3.descending(a.globalsale, b.globalsale));
-              //   return d3.descending(a.globalsale, b.globalsale); 
-              // })
+              .sort(function(a, b) {
+                return d3.descending(parseFloat(a.globalsale), parseFloat(b.globalsale)); 
+              })
               .transition()
               .ease(d3.easeLinear)
               .duration(aduration)
               .attr('width', (datum) => {return xScale(xBarValue(datum))})
-              ;
-
-              console.log(gamesales);
+              .attr("y", function(d, i) { //对排序之后的横坐标重排
+                  return yScale(tmpPlatforms[i]) + yScale.bandwidth() / 10 ;
+              });
 
               c = c + 1;
+
             }
         }, aduration); 
         
@@ -260,4 +351,3 @@
 </body>
 
 </html>
-
