@@ -314,35 +314,28 @@
                   return yScale(tmpPlatforms[i]) + yScale.bandwidth() * 7 / 10;
               });
 
-
               g.selectAll('.rect-barchart')
               .data(gamesales, data => data.platform)
               .join('rect')
+              .transition()
+              .ease(d3.easeLinear)
+              .duration(aduration)
               .attr('id', function(d){
                 return d.platform;
               })
               .attr('value', function(d){
                 return d.globalsale;
               })
-              .attr('class', 'rect-barchart') // note to assgin class to it, or it will create new rect each time instead of smooth animation; 
-              .attr('x', 0)
-              .attr('y', datum => yScale(yBarValue(datum)) + yScale.bandwidth() / 10 )
-              .attr('height', yScale.bandwidth() * 4 / 5)
+              .attr('class', 'rect-barchart')
               .attr('fill', function(datum){return colors[datum.platform]})
               .attr("rx", 5)
-              .sort(function(a, b) {
-                return d3.descending(parseFloat(a.globalsale), parseFloat(b.globalsale)); 
-              })
-              .transition()
-              .ease(d3.easeLinear)
-              .duration(aduration)
+              .attr('x', 0)
+              .attr('height', yScale.bandwidth() * 4 / 5)
               .attr('width', (datum) => {return xScale(xBarValue(datum))})
               .attr("y", function(d, i) { //对排序之后的横坐标重排
                   return yScale(tmpPlatforms[i]) + yScale.bandwidth() / 10 ;
               });
-
               c = c + 1;
-
             }
         }, aduration); 
         
